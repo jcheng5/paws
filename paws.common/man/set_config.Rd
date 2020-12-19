@@ -2,20 +2,31 @@
 % Please edit documentation in R/config.R
 \name{set_config}
 \alias{set_config}
+\alias{init_svc}
 \title{Add configuration settings to a service object.}
 \usage{
 set_config(svc, cfgs = list())
+
+init_svc(service, cfgs = list())
 }
 \arguments{
-\item{svc}{A service object containing service operations.}
+\item{svc}{The equivalent of \code{service$operations}.}
 
 \item{cfgs}{A list of optional configuration settings.}
+
+\item{service}{A service object, which is a list containing at least two
+sub-lists: \code{operations} (a named list of functions) and \code{metadata} (a named
+list of service metadata, including a \code{service_name}).}
 }
 \description{
 Add configuration settings to a service object.
 }
 \details{
-The optional configuration settings can include the following:\preformatted{list(
+The \code{set_config} function is deprecated; \code{init_svc} should be used instead,
+as it implements helpful \code{\link[=print]{print()}} methods for service objects and operation
+functions. The two diff
+
+The optional configuration settings (\code{cfgs}) can include the following:\preformatted{list(
   credentials = list(
     creds = list(
       access_key_id = "string",
@@ -30,9 +41,9 @@ The optional configuration settings can include the following:\preformatted{list
 }
 }
 \examples{
-# Create a config object with custom credentials and endpoint.
-config <- set_config(
-  svc = list(),
+# Create a service object with custom credentials and endpoint.
+svc <- init_svc(
+  service = list(operations = list(), metadata = list(service_name = "test")),
   cfgs = list(
     credentials = list(
       creds = list(
@@ -45,3 +56,4 @@ config <- set_config(
 )
 
 }
+\keyword{internal}

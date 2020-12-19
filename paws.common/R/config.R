@@ -30,11 +30,19 @@ get_config <- function() {
 
 #' Add configuration settings to a service object.
 #'
-#' @param svc A service object containing service operations.
+#' @param service A service object, which is a list containing at least two
+#'   sub-lists: `operations` (a named list of functions) and `metadata` (a named
+#'   list of service metadata, including a `service_name`).
+#' @param svc The equivalent of `service$operations`.
 #' @param cfgs A list of optional configuration settings.
 #'
 #' @details
-#' The optional configuration settings can include the following:
+#'
+#' The `set_config` function is deprecated; `init_svc` should be used instead,
+#' as it implements helpful [print()] methods for service objects and operation
+#' functions. The two diff
+#'
+#' The optional configuration settings (`cfgs`) can include the following:
 #' ```
 #' list(
 #'   credentials = list(
@@ -51,9 +59,9 @@ get_config <- function() {
 #' ```
 #'
 #' @examples
-#' # Create a config object with custom credentials and endpoint.
-#' config <- set_config(
-#'   svc = list(),
+#' # Create a service object with custom credentials and endpoint.
+#' svc <- init_svc(
+#'   service = list(operations = list(), metadata = list(service_name = "test")),
 #'   cfgs = list(
 #'     credentials = list(
 #'       creds = list(
@@ -65,12 +73,76 @@ get_config <- function() {
 #'   )
 #' )
 #'
+#' @keywords internal
 #' @export
 set_config <- function(svc, cfgs = list()) {
   shape <- tag_annotate(Config())
   config <- populate(cfgs, shape)
   svc$.internal <- list(config = config)
   return(svc)
+}
+
+#' @rdname set_config
+#' @export
+init_svc <- function(service, cfgs = list()) {
+  service_name <- service$metadata$service_name
+
+  svc <- service$operations
+  svc <- mapply(names(svc), svc, FUN = function(nm, op) {
+    if (is.function(op) && !inherits(op, "paws.service.operation")) {
+      class(op) <- c("paws.service.operation", class(op))
+      attr(op, "paws.service.name") <- service_name
+      attr(op, "paws.service.operation.name") <- nm
+    }
+    op
+  })
+
+  svc <- set_config(svc, cfgs)
+
+  # Set custom classname to customize print() behavior
+  class(svc) <- c("paws.service", "list")
+  svc$.internal$service_name <- service_name
+
+  return(svc)
+}
+
+#' @export
+print.paws.service <- function(x, ...) {
+  service_name <- x[[".internal"]][["service_name"]]
+  indent <- ""
+
+  if (!is.na(service_name)) {
+    cat(sep = "", "<paws::", service_name, ">\n")
+    indent <- "  "
+  }
+
+  for (nm in names(x)) {
+    if (grepl("^\\.", nm)) {
+      next
+    }
+    if (!is.function(x[[nm]])) {
+      next
+    }
+    cat(sep = "", indent, nm, "()")
+    # arg_str <- head(format(args(x[[nm]])), -1)
+    # arg_str[[1]] <- sub("^function ?", "", arg_str[[1]])
+    # arg_str[-1] <- paste0(indent, arg_str[-1])
+    # cat(crayon::silver(paste0(collapse = "\n", arg_str)))
+    cat("\n")
+  }
+  cat(crayon::silver("Print a method for more information"))
+}
+
+#' @export
+print.paws.service.operation <- function(x, ...) {
+  pkg <- environment(x)[[".packageName"]]
+  service <- attr(x, "paws.service.name", exact = TRUE)
+  operation <- attr(x, "paws.service.operation.name", exact = TRUE)
+  topic <- paste0(service, "_", operation)
+  message("Displaying ?", pkg, "::", topic)
+  # Extra parens are required to prevent topic and pkg from being deparsed; see
+  # examples in ?utils::help
+  print(help(topic = (topic), package = (pkg)))
 }
 
 # Get the path to the .aws folder.
